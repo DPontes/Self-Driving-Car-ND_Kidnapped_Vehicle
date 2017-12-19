@@ -115,12 +115,6 @@ void ParticleFilter::prediction(double delta_t, double std_pos[],
 	}
 }
 
-/*
-	Update the weight of each particle based on the multivariate Gaussian
-	probability of the particle's predicted landmark measurement positions
-	vs. the actual measured observations. This is done with the following steps:
-	1.	Pre-filter the known map landmarks 
-*/
 void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::vector<LandmarkObs>& observations) {
 	// TODO: Find the predicted measurement that is closest to each observed measurement and assign the
 	//   observed measurement to this particular landmark.
@@ -129,19 +123,161 @@ void ParticleFilter::dataAssociation(std::vector<LandmarkObs> predicted, std::ve
 
 }
 
+/*
+	Update the weight of each particle based on the multivariate Gaussian
+	probability of the particle's predicted landmark measurement positions
+	vs. the actual measured observations. This is done with the following steps:
+	1.	Pre-filter the known map landmarks to find which ones are in the particle's
+	sensor range with margin
+	2.	Convert vehicle's measured observations to map coordinates and associate
+	each measured observation to the nearest pre-filtered landmark in the
+	particle's range (using nearest neighbor matvching)
+	3.	Calculate the multivariate Gaussian probability between each observed
+	measurement and the matched landmark x,y position and set the particle's
+	weight by multiplying them all together
+	4.	Set the particle's association information for visualization
+	5.	Check if all weights are zero to reinitialize if particles are way off
+
+	The following references were used:
+	https://en.wikipedia.org/wiki/Multivariate_normal_distribution
+  https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
+  http://planning.cs.uiuc.edu/node99.html (equation 3.33)
+*/
 void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
-		const std::vector<LandmarkObs> &observations, const Map &map_landmarks) {
-	// TODO: Update the weights of each particle using a mult-variate Gaussian distribution. You can read
-	//   more about this distribution here: https://en.wikipedia.org/wiki/Multivariate_normal_distribution
-	// NOTE: The observations are given in the VEHICLE'S coordinate system. Your particles are located
-	//   according to the MAP'S coordinate system. You will need to transform between the two systems.
-	//   Keep in mind that this transformation requires both rotation AND translation (but no scaling).
-	//   The following is a good resource for the theory:
-	//   https://www.willamette.edu/~gorr/classes/GeneralGraphics/Transforms/transforms2d.htm
-	//   and the following is a good resource for the actual equation to implement (look at equation
-	//   3.33
-	//   http://planning.cs.uiuc.edu/node99.html
-}
+																	 const std::vector<LandmarkObs> &observations,
+																	 const Map &map_landmarks) {
+
+	/*
+		Parameter for a margin multiplier on the particle's sensor range to
+		pre-filter landmarks within range since particle may be shifted from
+		vehicle's actual position
+	*/
+	constexpr double kSensorRangeMargin = 1.2;
+
+	// Reset list of all particle weights to be refilled in this function
+	weights.clear();
+	weights.resize(num_particles);
+
+	// Loop through each particle to update its weight
+	for(unsigned int = 0; i < num_particles; i++){
+		// Make a mapping of particle observations with:
+		//	key   = landmark ID integer
+		//	value = LandmarkObs structure
+		std::unordered_map<int, LandmarkObs> particle_observations;
+
+		// Copy observation vector to add associated landmark IDs
+		std::vector<LandmarkObs> vehicle_observations(observations);
+
+		// Vectors to store the particles association info for visualization
+		std::vector<int>    associations;
+		std::vector<double> sense_x;
+		std::vector<double> sense_y;
+
+		//Step 1: Find which map landmarks are in the particle's sensor range with margin
+		for(const auto &landmark : map_landmarks.landmark_list){
+			// Recast landmark x,y position from float -> double
+			const double landmark_x = static_cast<double>(landmark.x_f);
+			const double landmark_y = static_cast<double>(landmark.y_f);
+
+			// Calculate distance from particle to the landmark
+			const double dist_to_landmark = dist(particles[i].x, particles[i].y,
+																					 landmark_x, landmark_y);
+
+			// If within sensor range, add landmark to particle's observations
+			if(dist_to_landmark < (sensor_range * kSensorRangeMargin)){
+				LandmarkObs pred_obs;
+				pred_obs.id = landmark.id_i;
+				pred_obs.x	= landmark_x;
+				pred_obs.y	= landmark_y;
+				particle_observations.emplace(landmark.id_i, pred_obs);
+			}
+		}
+
+		/*
+			Step 2: Convert measured observations from vehicle coordinates to map
+			coordinates and associate the nearest landmark ID from pre-filtered
+			particle observations to be able to match up for the Gaussian weight calculation
+		*/
+
+		// Set coordinate transformation values from this particle
+		const double theta  = -particles[i].theta;		// rotate back particle -> map
+		const double x_part = particles[i].x;
+		const double y_part = particles[i].y;
+
+		// Loop through each measured observation
+		for(auto &obs : vehicle_observations){
+			// Convert observation from vehicle coordinates to map coordinates
+			const double x_map = x_part + (cos(theta) * obs.x) + (sin(theta) * obs.y);
+			const double y_map = y_part - (sin(theta) * obs.x) + (cos(theta) * obs.y);
+			obs.x = x_map;
+			obs.y = y_map;
+
+			// Compare observation position to each pre-filtered particle observation
+			// to associate the closest landmark ID
+			double min_dist = __DBL_MAX__;
+			for(const auto &pred_obs : particle_observations) {
+				const int pred_obs_id   = pred_obs.first; 		// landmark ID
+				const double pred_obs_x = pred_obs.second.x;	// landmark x position
+				const double pred_obs_y = pred_obs.second.y;	// Landmark y position
+
+				// Calculate distance between the observations
+				const double cur_dist = dist(pred_obs_x, pred_obs_y, obs.x, obs.y);
+
+				// Associate nearest landmark ID
+				if(cur_dist < min_dist) {
+					min_dist = cur_dist;
+					obs.id   = pred_obs_id;
+				}
+			}
+
+			// Add associated observation info to visualization Vectors
+			associations.push_back(obs.id);
+			sense_x.push_back(obs.x);
+			sense_y.push_back(obs.y);
+		}
+
+		/*
+			Step 3:
+			Set particle weight by multiplying all of the calculated multivariate
+			Gaussian probabilities of the observations with their assocaited
+			landmark x, y positions
+		*/
+		double weight_ = 1.0;
+		for(const auto &obs : vehicle_observations){
+			// Set landmarks standard deviations and mean x, y position
+			const double sig_x = std_landmark[0];
+			const double sig_y = std_landmark[1];
+			const double mu_x  = particle_observations[obs.id].x;
+			const double mu_y  = particle_observations[obs.id].y;
+
+			// Multivariate Gaussian equations for each vehicle observation
+			const double gauss_norm = (1 / (2 * M_PI * sig_x * sig_y));
+			const double exponent   = (pow(obs.x - mu_x,2)) / (2 * pow(sig_x,2)) +
+																(pow(obs.y - mu_y,2)) / (2 * pow(sig_y,2));
+
+			weight_ *= gauss_norm * exp(-exponent);
+		}
+
+		// Set weight in the particle property and in the combined weights vector
+		particles[i].weight = weight_;
+		weight[i] = weight_;
+
+		//	Step 4: Set particle's associations for visualization
+		SetAssociations(particles[i], associations, sense_x, sense_y);
+	}		// loop to next particle
+
+	// Set 5: Check if all weights are zero to reinitialize if particles are way off
+	double weight_sum = 0.0;
+	for( auto &weight : weights) {
+		weight_sum += weight;
+	}
+	if (weight_sum == 0.0){
+		is_initialized = false;
+	}
+
+	// No Need to normalize particle weights because they will be resampled using
+	// std::discrete_distribution which will automatically normalize them
+} // ParticleFilter::updateWeights
 
 void ParticleFilter::resample() {
 	// TODO: Resample particles with replacement with probability proportional to their weight.
