@@ -279,25 +279,54 @@ void ParticleFilter::updateWeights(double sensor_range, double std_landmark[],
 	// std::discrete_distribution which will automatically normalize them
 } // ParticleFilter::updateWeights
 
+/*
+	Resample the set of particles with probability of being chosen based on the
+	particle's weight using std::discrete_distribution
+	http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+*/
 void ParticleFilter::resample() {
-	// TODO: Resample particles with replacement with probability proportional to their weight.
-	// NOTE: You may find std::discrete_distribution helpful here.
-	//   http://en.cppreference.com/w/cpp/numeric/random/discrete_distribution
+	// Set up a new vector of resampled particles
+	std::vector<Particle> new_particles(num_particles);
 
-}
+	// Set up random sampling generators with the combined weights Vector
+	std::random_device rand_dev;
+	std::default_random_engine random_gen(rand_dev());
+	std::discrete_distribution<int> discrete_dist(weights.begin(), weights.end());
 
+	// Resample the particles
+	for(unsigned int i = 0; i < num_particles; i++){
+		const int index = discrete_dist(random_gen);
+		new_particles[i] = particles[index];
+	}
+
+	// Replace the particle set with the resampled particles
+	particles.clear();
+	particles = new_particles;
+} //ParticleFilter::resample
+
+/*
+	Set a particle's association info vectors for visualization by the simulator
+*/
 Particle ParticleFilter::SetAssociations(Particle& particle, const std::vector<int>& associations,
-                                     const std::vector<double>& sense_x, const std::vector<double>& sense_y)
+                                     		 const std::vector<double>& sense_x,
+																				 const std::vector<double>& sense_y)
 {
-    //particle: the particle to assign each listed association, and association's (x,y) world coordinates mapping to
+    // particle: the particle to assign each listed association, and association's (x,y) world coordinates mapping to
     // associations: The landmark id that goes along with each listed association
     // sense_x: the associations x mapping already converted to world coordinates
     // sense_y: the associations y mapping already converted to world coordinates
 
+		// Clear the previous associations
+		particle.associations.clear();
+		particle.sense_x.clear();
+		particle.sense_y.clear();
+
+		// Set the particle's association info vectors
     particle.associations= associations;
     particle.sense_x = sense_x;
     particle.sense_y = sense_y;
-}
+
+} // ParticleFilter::SetAssociations
 
 string ParticleFilter::getAssociations(Particle best)
 {
@@ -308,6 +337,7 @@ string ParticleFilter::getAssociations(Particle best)
     s = s.substr(0, s.length()-1);  // get rid of the trailing space
     return s;
 }
+
 string ParticleFilter::getSenseX(Particle best)
 {
 	vector<double> v = best.sense_x;
@@ -317,6 +347,7 @@ string ParticleFilter::getSenseX(Particle best)
     s = s.substr(0, s.length()-1);  // get rid of the trailing space
     return s;
 }
+
 string ParticleFilter::getSenseY(Particle best)
 {
 	vector<double> v = best.sense_y;
