@@ -16,4 +16,13 @@ The algorithm follows the following steps:
 
 5. **Resample** the set of particles with the **probability based on the particle weights** to re-center them on the best matches from the landmark observations.
 
-6. Visualize the **best particle with the highest weight** and it's associated observations as the filter's output vehicle position. 
+6. Visualize the **best particle with the highest weight** and it's associated observations as the filter's output vehicle position.
+
+## Result
+
+**Error X:** 0.116
+
+**Error Y:** 0.108
+
+
+![Image of the end of a Sucessful Run](https://github.com/DPontes/Self-Driving-Car-ND_Particle-Filter-Localization/blob/master/images/Capture1.PNG)
