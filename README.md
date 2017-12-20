@@ -26,3 +26,42 @@ The algorithm follows the following steps:
 
 
 ![Image of the end of a Sucessful Run](https://github.com/DPontes/Self-Driving-Car-ND_Particle-Filter-Localization/blob/master/images/Capture1.PNG)
+
+## Key Files
+
+| File                         | Description                                                                                                                                            |
+|:----------------------------:|:------------------------------------------------------------------------------------------------------------------------------------------------------:|
+| /src/main.cpp                | Source code for **main loop** that handles **uWebSockets communication to simulator**                                                                  |
+| /src/particle_filter.cpp, .h | Source code for **particle filter algorithm** that localizes vehicle position by sampling particles that best match measured map landmark observations |
+| /build/particle_filter       | Output **executable program binary**                                                                                                                   |
+| install-mac.sh               | Script for Mac to install uWebSocketIO required to interface with simulator                                                                            |
+| install-ubuntu.sh            | Script for Linux to install uWebSocketIO required to interface with simulator                                                                          |
+
+The original Udacity project repository is [here](https://github.com/udacity/CarND-Kidnapped-Vehicle-Project).
+
+## How to Build and Run Code
+
+This project involves the Udacity Term 2 Simulator which can be downloaded [here](https://github.com/udacity/self-driving-car-sim/releases)
+
+This repository includes two scripts (**install-mac.sh** and **install-ubuntu.sh**) that can be used to set up and install [uWebSocketIO](https://github.com/uWebSockets/uWebSockets) for either Linux or Mac systems.
+
+Once the install for uWebSocketIO is complete, the main program can be built and run by doing the following from the project top directory.
+
+1. mkdir build
+2. cd build
+3. cmake ..
+4. make
+5. ./particle_filter
+
+## Other Important Dependencies
+
+* cmake >= 3.5
+  * All OSes: [click here for installation instructions](https://cmake.org/install/)
+* make >= 4.1 (Linux, Mac), 3.81 (Windows)
+  * Linux: make is installed by default on most Linux distros
+  * Mac: [install Xcode command line tools to get make](https://developer.apple.com/xcode/features/)
+  * Windows: [Click here for installation instructions](http://gnuwin32.sourceforge.net/packages/make.htm)
+* gcc/g++ >= 5.4
+  * Linux: gcc / g++ is installed by default on most Linux distros
+  * Mac: same deal as make - [install Xcode command line tools](https://developer.apple.com/xcode/features/)
+  * Windows: recommend using [MinGW](http://www.mingw.org/)
