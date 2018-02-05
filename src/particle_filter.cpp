@@ -64,13 +64,13 @@ void ParticleFilter::init(double x, double y, double theta, double std[]) {
 }
 
 /*
-	Predict where each particle would have moved to adter time delta_t to the
+	Predict where each particle would have moved to after time delta_t to the
 	current time step using CTRV motion equations and the controlled velocity
 	and yaw_rate. Randomly sample from a Gaussian distribution around this predicted
 	mean position with the given standard deviations for x, y, and theta
 */
-void ParticleFilter::prediction(double delta_t, double std_pos[],
-																double velocity, double yaw_rate) {
+void ParticleFilter::prediction(double delta_t, double std_pos[]
+				double velocity, double yaw_rate) {
 	// NOTE: When adding noise you may find std::normal_distribution and std::default_random_engine useful.
 	//  http://en.cppreference.com/w/cpp/numeric/random/normal_distribution
 	//  http://www.cplusplus.com/reference/random/default_random_engine/
